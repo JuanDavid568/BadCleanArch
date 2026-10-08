@@ -78,7 +78,7 @@ public class SqliteOrderRepository : IOrderRepository
         return ReadOrders(command);
     }
 
-    public Order GetById(int id)
+    public Order? GetById(int id)
     {
         const string sql = SelectColumns + " WHERE Id = @Id;";
         using var connection = new SqliteConnection(_connectionString);

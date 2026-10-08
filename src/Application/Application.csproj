@@ -5,7 +5,6 @@
     <ImplicitUsings>disable</ImplicitUsings>
   </PropertyGroup>
 
-  <!-- BAD: Application knows about Web layer and Infrastructure (more violations) -->
   <ItemGroup>
     <ProjectReference Include="..\Domain\Domain.csproj" />
   </ItemGroup>

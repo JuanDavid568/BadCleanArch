@@ -21,7 +21,7 @@ public class CreateOrderUseCase
         var order = OrderService.Create(customer, product, quantity, price);
         _orderRepository.Save(order);
 
-        _logger.Log($"Orden{order.Id} creada para el cliente {customer}. Total: {order.CalculateTotal}");
+        _logger.Log($"Orden{order.Id} creada para el cliente {customer}. Total: {order.CalculateTotal()}");
 
         return order;
     }
