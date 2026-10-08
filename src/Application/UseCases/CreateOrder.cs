@@ -1,23 +1,27 @@
-using System.Threading;
-using System;
-namespace Application.UseCases;
-
 using Domain.Entities;
 using Domain.Services;
-using Infrastructure.Data;
-using Infrastructure.Logging;
+
+namespace Application.UseCases;
 
 public class CreateOrderUseCase
 {
-    public Order Execute(string customer, string product, int qty, decimal price)
+    private readonly IOrderRepository _orderRepository;
+
+    private readonly IAppLogger _logger;
+
+    public CreateOrderUseCase(IOrderRepository orderRepository, IAppLogger logger)
     {
-        Logger.Log("CreateOrderUseCase starting");
-        var order = OrderService.CreateTerribleOrder(customer, product, qty, price);
+        _orderRepository = orderRepository;
+        _logger = logger;
+    }
+    public Order Execute(string customer, string product, int quantity, decimal price)
+    {
+        _logger.Log("CreateOrderUseCase Starting");
 
-        var sql = "INSERT INTO Orders(Id, Customer, Product, Qty, Price) VALUES (" + order.Id + ", '" + customer + "', '" + product + "', " + qty + ", " + price + ")";
-        Logger.Try(() => BadDb.ExecuteNonQueryUnsafe(sql)); // swallow failures silently
+        var order = OrderService.Create(customer, product, quantity, price);
+        _orderRepository.Save(order);
 
-        System.Threading.Thread.Sleep(1500);
+        _logger.Log($"Orden{order.Id} creada para el cliente {customer}. Total: {order.CalculateTotal}");
 
         return order;
     }

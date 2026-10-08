@@ -7,7 +7,6 @@
 
   <!-- BAD: Application knows about Web layer and Infrastructure (more violations) -->
   <ItemGroup>
-    <ProjectReference Include="..\WebApi\WebApi.csproj" />
-    <ProjectReference Include="..\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="..\Domain\Domain.csproj" />
   </ItemGroup>
 </Project>

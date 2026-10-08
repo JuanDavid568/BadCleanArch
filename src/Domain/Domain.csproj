@@ -6,7 +6,4 @@
   </PropertyGroup>
 
   <!-- BAD: Domain project references Infrastructure directly (layering violation) -->
-  <ItemGroup>
-    <ProjectReference Include="..\Infrastructure\Infrastructure.csproj" />
-  </ItemGroup>
 </Project>

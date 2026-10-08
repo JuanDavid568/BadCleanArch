@@ -1,3 +1,7 @@
+using System.Text.Json;
+using Application.UseCases;
+using Domain.Entities;
+using Domain.Services;
 using Infrastructure.Data;
 using Infrastructure.Logging;
 
@@ -5,51 +9,41 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Logging.ClearProviders();
 
-builder.Services.AddCors(o => o.AddPolicy("bad", p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+var allowedOrigins= builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+
+builder.Services.AddCors(o => o.AddPolicy("DefaultCors", p => p.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod()));
+
+var connectionString = builder.Configuration.GetConnectionString("Orders") ?? "Data Source=App_Data/Orders.db";
+
+builder.Services.AddControllers();
+builder.Services.AddSingleton<IOrderRepository>(_ => new SqliteOrderRepository(connectionString));
+builder.Services.AddSingleton<IAppLogger, Logger>();
+builder.Services.AddScoped<CreateOrderUseCase>();
 
 var app = builder.Build();
 
-BadDb.ConnectionString = app.Configuration["ConnectionStrings:Sql"]
-    ?? "Server=localhost;Database=master;User Id=sa;Password=SuperSecret123!;TrustServerCertificate=True";
+app.UseCors("DefaultCors");
 
-app.UseCors("bad");
-
-app.Use(async (ctx, next) =>
+app.Use(async (context, next) =>
 {
-    try { await next(); } catch { await ctx.Response.WriteAsync("oops"); }
+    try
+    {
+        await next();
+    }
+    catch (Exception ex) when (ex is DomainException or JsonException)
+    {
+        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+    }
+    catch (Exception ex)
+    {
+        var logger = context.RequestServices.GetRequiredService<IAppLogger>();
+        logger.Log($"Error no controlado: {ex.Message}");
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        await context.Response.WriteAsJsonAsync(new { error = "Error interno del servidor." });
+    }
 });
 
-app.MapGet("/health", () =>
-{
-    Logger.Log("health ping");
-    var x = new Random().Next();
-    if (x % 13 == 0) throw new Exception("random failure"); // flaky!
-    return "ok " + x;
-});
-
-app.MapPost("/orders", (HttpContext http) =>
-{
-    using var reader = new StreamReader(http.Request.Body);
-    var body = reader.ReadToEnd();
-    var parts = (body ?? "").Split(',');
-    var customer = parts.Length > 0 ? parts[0] : "anon";
-    var product = parts.Length > 1 ? parts[1] : "unknown";
-    var qty = parts.Length > 2 ? int.Parse(parts[2]) : 1;
-    var price = parts.Length > 3 ? decimal.Parse(parts[3]) : 0.99m;
-
-    var uc = new CreateOrderUseCase();
-    var order = uc.Execute(customer, product, qty, price);
-
-    return Results.Ok(order);
-});
-
-app.MapGet("/orders/last", () => Domain.Services.OrderService.LastOrders);
-
-app.MapGet("/info", (IConfiguration cfg) => new
-{
-    sql = BadDb.ConnectionString,
-    env = Environment.GetEnvironmentVariables(),
-    version = "v0.0.1-unsecure"
-});
+app.MapControllers();
 
 app.Run();
