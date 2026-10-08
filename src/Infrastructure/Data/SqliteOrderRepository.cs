@@ -10,9 +10,10 @@ namespace Infrastructure.Data;
 
 public class SqliteOrderRepository : IOrderRepository
 {
-   private readonly string _connectionString;
+    private const string SelectColumns = "Select Id, Customer, Product, Quantity, Price from Orders";
+    private readonly string _connectionString;
 
-   public SqliteOrderRepository(string connectionString)
+    public SqliteOrderRepository(string connectionString)
     {
         _connectionString = connectionString;
         EnsureDatabase();
@@ -58,21 +59,69 @@ public class SqliteOrderRepository : IOrderRepository
     }
     public List<Order> GetRecent(int count)
     {
-        const string sql = @"SELECT Id, Customer, Product, Quantity, Price 
-                             FROM Orders 
-                             ORDER BY Id DESC 
-                             LIMIT @Count;";
+        const string sql = SelectColumns + " ORDER BY Id DESC LIMIT @Count";
 
-        var orders = new List<Order>();
 
         using var connection = new SqliteConnection(_connectionString);
         using var command = new SqliteCommand(sql, connection);
         command.Parameters.AddWithValue("@Count", count);
         connection.Open();
+        return ReadOrders(command);
+    }
+
+    public List<Order> GetAll()
+    {
+        const string sql = SelectColumns + " ORDER BY Id;";
+        using var connection = new SqliteConnection(_connectionString);
+        using var command = new SqliteCommand(sql, connection);
+        connection.Open();
+        return ReadOrders(command);
+    }
+
+    public Order GetById(int id)
+    {
+        const string sql = SelectColumns + " WHERE Id = @Id;";
+        using var connection = new SqliteConnection(_connectionString);
+        using var command = new SqliteCommand(sql, connection);
+        command.Parameters.AddWithValue("@Id", id);
+        connection.Open();
+        var orders = ReadOrders(command);
+        return orders.Count > 0 ? orders[0] : null;
+    }
+
+    public bool Update(Order order)
+    {
+        const string sql = @"UPDATE Orders 
+                             SET Customer = @Customer, Product = @Product, Quantity = @Quantity, Price = @Price 
+                             WHERE Id = @Id;";
+        using var connection = new SqliteConnection(_connectionString);
+        using var command = new SqliteCommand(sql, connection);
+        command.Parameters.AddWithValue("@Customer", order.CustomerName);
+        command.Parameters.AddWithValue("@Product", order.ProductName);
+        command.Parameters.AddWithValue("@Quantity", order.Quantity);
+        command.Parameters.AddWithValue("@Price", order.UnitPrice);
+        command.Parameters.AddWithValue("@Id", order.Id);
+        connection.Open();
+        return command.ExecuteNonQuery() > 0;
+    }
+
+    public bool Delete(int id)
+    {
+        const string sql = "DELETE FROM Orders WHERE Id = @Id;";
+        using var connection = new SqliteConnection(_connectionString);
+        using var command = new SqliteCommand(sql, connection);
+        command.Parameters.AddWithValue("@Id", id);
+        connection.Open();
+        return command.ExecuteNonQuery() > 0;
+    }
+
+    private static List<Order> ReadOrders(SqliteCommand command)
+    {
+        var orders = new List<Order>();
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
-            orders.Add(new Order 
+            orders.Add(new Order
             {
                 Id = reader.GetInt32(0),
                 CustomerName = reader.GetString(1),
@@ -82,6 +131,5 @@ public class SqliteOrderRepository : IOrderRepository
             });
         }
         return orders;
-        
     }
 }

@@ -17,17 +17,14 @@ var connectionString = builder.Configuration.GetConnectionString("Orders") ?? "D
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>
-{
-    options.SwaggerDoc("v1", new() { Title= "Orders API", Version = "v1" });
-    
-});
-
+builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<IOrderRepository>(_ => new SqliteOrderRepository(connectionString));
 builder.Services.AddSingleton<IAppLogger, Logger>();
 builder.Services.AddScoped<CreateOrderUseCase>();
 
 var app = builder.Build();
+
+app.UseCors("DefaultCors");
 
 if (app.Environment.IsDevelopment())
 {
@@ -35,7 +32,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseCors("DefaultCors");
 
 app.Use(async (context, next) =>
 {
