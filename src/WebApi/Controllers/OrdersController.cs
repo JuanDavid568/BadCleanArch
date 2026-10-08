@@ -1,4 +1,5 @@
 using Application.UseCases;
+using Domain.Entities;
 using Domain.Services;
 using Microsoft.AspNetCore.Mvc;
 using WebApi.Models;
@@ -28,27 +29,15 @@ public class OrdersController : ControllerBase
     }   
 
     [HttpPost]
-    public async Task<IActionResult> Create ()
+    [Consumes("text/plain")]
+    [ApiExplorerSettings(IgnoreApi = true)]
+    public async Task<IActionResult> CreateFromCsv() 
     {
-        CreateOrderRequest data;
-
-        if (!Request.HasJsonContentType())
-        {
-            data = await Request.ReadFromJsonAsync<CreateOrderRequest>()
-            ?? new CreateOrderRequest(null, null, null, null);
-        }
-        else
-        {
-            using var reader = new StreamReader(Request.Body);
-            data = CreateOrderRequest.FromCsv(await reader.ReadToEndAsync());
-        }
-        var order = _createOrder.Execute(
-            data.Customer ?? "anon",
-            data.Product ?? "unknown",
-            data.Quantity ?? 1,
-            data.Price ?? 0.99m);
-        return Ok(order);
+        using var reader = new StreamReader(Request.Body);
+        var data = CreateOrderRequest.FromCsv(await reader.ReadToEndAsync());
+        return Ok(Execute(data));
     }
+      
     [HttpGet("last")]
     public IActionResult GetLast() => Ok(_repository.GetRecent(10));
 
@@ -61,4 +50,11 @@ public class OrdersController : ControllerBase
     [HttpGet("~/info")]
     public IActionResult Info() =>
         Ok(new { environment = _env.EnvironmentName, version = "1.0.0" });
+
+    private Order Execute(CreateOrderRequest data) =>
+        _createOrder.Execute(
+            data.Customer ?? "anon",
+            data.Product ?? "unknown",
+            data.Quantity ?? 1,
+            data.Price ?? 0.99M);
 }

@@ -16,11 +16,24 @@ builder.Services.AddCors(o => o.AddPolicy("DefaultCors", p => p.WithOrigins(allo
 var connectionString = builder.Configuration.GetConnectionString("Orders") ?? "Data Source=App_Data/Orders.db";
 
 builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new() { Title= "Orders API", Version = "v1" });
+    
+});
+
 builder.Services.AddSingleton<IOrderRepository>(_ => new SqliteOrderRepository(connectionString));
 builder.Services.AddSingleton<IAppLogger, Logger>();
 builder.Services.AddScoped<CreateOrderUseCase>();
 
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 app.UseCors("DefaultCors");
 
